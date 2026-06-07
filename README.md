@@ -50,37 +50,37 @@
 
 # How to Run
 
-# 1 Clone Repository
+- 1 Clone Repository
 
-- git clone <YOUR_GITHUB_URL>
+git clone <YOUR_GITHUB_URL>
 
-- cd aws-serverless-etl-platform
+cd aws-serverless-etl-platform
 
-# 2 Create Virtual Environment
+- 2 Create Virtual Environment
 
-- python3 -m venv venv
+python3 -m venv venv
 
-# 3 Activate Environment
+- 3 Activate Environment
 
-- source venv/bin/activate
+source venv/bin/activate
 
-# 4 Install Dependencies
+- 4 Install Dependencies
 
-- pip install -r flask-app/requirements.txt
+pip install -r flask-app/requirements.txt
 
-# 5 Update API Gateway URL
+- 5 Update API Gateway URL
 
-- nano flask-app/app.py
+nano flask-app/app.py
 
-# Replace:
-# API_URL=YOUR_API_URL
+- Replace:
+- API_URL=YOUR_API_URL
 
-# 6 Run Flask Application
+- 6 Run Flask Application
 
-- cd flask-app
-- python3 app.py
+cd flask-app
+python3 app.py
 
-# Application Runs At
+- Application Runs At
 
 http://EC2_PUBLIC_IP:5000
 
@@ -94,5 +94,5 @@ http://EC2_PUBLIC_IP:5000
 
 ## Author
 
-Meenakshi Sundaram N
+Meenakshi Sundaram N <br>
 B.Tech Information Technology
