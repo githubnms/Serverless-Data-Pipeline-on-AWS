@@ -27,7 +27,7 @@
 ## Architecture
 
 <div align="center">
-  <img src="assest/aws-etl-workflow" width="700" alt="AWS Architecture Diagram">
+  <img src="assest/aws-etl-workflow.png" width="700" alt="AWS Architecture Diagram">
   <br>
   <em>Serverless Data Pipeline — AWS Architecture</em>
 </div>
@@ -36,7 +36,7 @@
 
 ### Data Flow
 <div align="center">
-  <img src="assest/CSVJSON Data File" width="700" alt="data flow">
+  <img src="assest/CSVJSON Data File.png" width="700" alt="data flow">
   <br>
   <em>Data Flow</em>
 </div>
@@ -200,6 +200,7 @@ Interactive dashboards + sentiment reports
 
 ## Author
 
-Meenakshi Sundaram N <br>
-B.Tech Information Technology <br>
+**Meenakshi Sundaram N** 
+<br>
+**B.Tech Information Technology**
 - LinkedIn: [[Click](https://www.linkedin.com/in/meenakshisundaram15/)]
