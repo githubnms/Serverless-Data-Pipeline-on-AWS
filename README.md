@@ -11,6 +11,10 @@
 ![QuickSight](https://img.shields.io/badge/Amazon_QuickSight-BI_Dashboard-00A1C9?style=for-the-badge&logo=amazonaws&logoColor=white)
 ![Amazon Comprehend](https://img.shields.io/badge/Amazon_Comprehend-NLP%2FML-FF9900?style=for-the-badge&logo=amazonaws&logoColor=black)
 
+## Project Status: Active Development
+
+**Note: The project is actively being enhanced. Features and implementation details may evolve as development continues.**
+
 > A production-grade serverless data platform on AWS that ingests real-time customer records,       processes them through an automated ETL pipeline, performs ML-powered sentiment analysis using Amazon Comprehend, and delivers analytics through interactive QuickSight dashboards — built to mirror how enterprise-scale data teams operate on AWS.
 
 ## What Is This
