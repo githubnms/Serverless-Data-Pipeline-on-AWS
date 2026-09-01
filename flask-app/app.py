@@ -1,51 +1,46 @@
-from flask import Flask, render_template, request
+from flask import Flask, request, jsonify, render_template_string
 import requests
 
 app = Flask(__name__)
 
-API_URL="https://YOUR_API_GATEWAY_URL/dev/submit"
+API_URL = "https://z3xhrdnd2a.execute-api.us-east-1.amazonaws.com/prod/ingest"
 
-@app.route("/",methods=["GET","POST"])
+HOME_PAGE = """
+<!DOCTYPE html>
+<html>
+<head><title>Serverless Pipeline - Ingest</title></head>
+<body>
+    <h2>Submit Customer Records</h2>
+    <form action="/submit" method="post">
+        <textarea name="records" rows="6" cols="50" placeholder="Enter one record per line"></textarea><br><br>
+        <button type="submit">Submit</button>
+    </form>
+</body>
+</html>
+"""
 
+@app.route('/')
 def home():
+    return render_template_string(HOME_PAGE)
 
-    if request.method=="POST":
+@app.route('/submit', methods=['POST'])
+def submit():
+    raw_text = request.form.get('records', '')
+    records = [line.strip() for line in raw_text.split('\n') if line.strip()]
 
-        data={
+    if not records:
+        return jsonify({"error": "No records provided"}), 400
 
-            "id":request.form["id"],
+    response = requests.post(API_URL, json={"records": records})
 
-            "name":request.form["name"],
+    return jsonify({
+        "status_code": response.status_code,
+        "response": response.json()
+    })
 
-            "email":request.form["email"],
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok"})
 
-            "phone":request.form["phone"],
-
-            "address":request.form["address"],
-
-            "country":request.form["country"],
-
-            "city":request.form["city"],
-
-            "zipcode":request.form["zipcode"],
-
-            "message":request.form["message"]
-
-        }
-
-        response=requests.post(
-            API_URL,
-            json=data
-        )
-
-        return response.text
-
-    return render_template(
-        "index.html"
-    )
-
-
-app.run(
-host="0.0.0.0",
-port=5000
-)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
