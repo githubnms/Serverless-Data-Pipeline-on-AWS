@@ -3,12 +3,8 @@
 ![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=for-the-badge&logo=flask&logoColor=white)
 ![AWS Lambda](https://img.shields.io/badge/AWS_Lambda-Serverless-FF9900?style=for-the-badge&logo=awslambda&logoColor=white)
-![API Gateway](https://img.shields.io/badge/API_Gateway-REST_API-FF4F00?style=for-the-badge&logo=amazonapigateway&logoColor=white)
 ![DynamoDB](https://img.shields.io/badge/DynamoDB-NoSQL-4053D6?style=for-the-badge&logo=amazondynamodb&logoColor=white)
 ![Amazon S3](https://img.shields.io/badge/Amazon_S3-Object_Storage-569A31?style=for-the-badge&logo=amazons3&logoColor=white)
-![AWS Glue](https://img.shields.io/badge/AWS_Glue-ETL-FF9900?style=for-the-badge&logo=amazonaws&logoColor=black)
-![Amazon Athena](https://img.shields.io/badge/Amazon_Athena-SQL_Analytics-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
-![QuickSight](https://img.shields.io/badge/Amazon_QuickSight-BI_Dashboard-00A1C9?style=for-the-badge&logo=amazonaws&logoColor=white)
 ![Amazon Comprehend](https://img.shields.io/badge/Amazon_Comprehend-NLP%2FML-FF9900?style=for-the-badge&logo=amazonaws&logoColor=black)
 
 ## Project Status: Active Development
@@ -35,6 +31,38 @@
   <br>
   <em>Serverless Data Pipeline — AWS Architecture</em>
 </div>
+
+**Reconciliation Data Flow (new)**
+
+```
+Flask (EC2) → API Gateway → ingestion_handler
+                                   │
+                    ┌──────────────┼──────────────┐
+                    ▼                              ▼
+            DynamoDB: CustomerRecords      DynamoDB: IngestionLog
+                    │
+                    ▼ (DynamoDB Streams)
+            comprehend_handler (sentiment analysis)
+                    │
+                    ▼
+            DynamoDB: ProcessingLog
+                    │
+     ┌──────────────┴───────────────┐
+     ▼                               ▼
+export_handler                reconciliation_handler
+     │                               │
+     ▼                               ▼
+S3: raw-records/              S3: reconciliation-reports/
+     │                               │
+     ▼                               ▼
+Glue Crawler + ETL Job         Glue Crawler
+     │                               │
+     ▼                               ▼
+Amazon Athena  ◄──────────────────────
+     │
+     ▼
+Amazon QuickSight
+```
 
 ## Screenshots
 
@@ -79,20 +107,22 @@
 |---|---|---|
 | REST Ingestion Layer | Accepts real-time customer records via HTTP POST | Flask, API Gateway, Lambda |
 | Serverless Processing | Concurrent Lambda triggers handle records without servers | AWS Lambda, DynamoDB |
-| ML Sentiment Analysis | Classifies customer sentiment as Positive / Negative / Neutral | Amazon Comprehend, Lambda |
+| ML Sentiment Analysis | Classifies customer sentiment as Positive / Negative / Neutral | VADER Sentiment (Python), DynamoDB Streams, Lambda |
+| Reconciliation Reporting | Compares daily ingested vs. processed record totals, flags discrepancies | Lambda, EventBridge, DynamoDB, S3 |
 | ETL Pipeline | Crawls S3 data, applies transformations, outputs structured datasets | AWS Glue, Python |
 | SQL Analytics | Query processed data using standard SQL — no infrastructure | Amazon Athena |
-| BI Dashboards | Visual reports — segment by sentiment, region, time | Amazon QuickSight |
+| BI Dashboards | Visual reports — segment by sentiment, region, time, and reconciliation match rate | Amazon QuickSight |
 
 # Tech Stack
 
 | Category | Technology |
 |---|---|
-| Cloud | AWS (Lambda, API Gateway, DynamoDB, S3, Glue, Athena, QuickSight, Comprehend, EC2, IAM, CloudWatch) |
-| Backend | Python 3.12, Flask 3.0+, Gunicorn, Nginx |
+| Cloud | AWS (Lambda, API Gateway, DynamoDB, DynamoDB Streams, S3, Glue, Athena, QuickSight, EventBridge, EC2, IAM, CloudWatch) |
+| Backend | Python 3.12, Flask 3.0+ |
 | Ingestion | REST API, API Gateway, concurrent Lambda triggers |
-| ML / NLP | Amazon Comprehend (sentiment analysis, entity recognition) |
-| ETL | AWS Glue (crawler + job scripts), Python Shell jobs |
+| ML / NLP | VADER Sentiment Analysis (rule-based, lexicon-driven) |
+| Reconciliation | Lambda, EventBridge scheduled rules, DynamoDB scans |
+| ETL | AWS Glue (crawler + job scripts), PySpark |
 | Analytics | Amazon Athena, SQL |
 | Visualisation | Amazon QuickSight |
 | Storage | DynamoDB (hot store), S3 (data lake) |
@@ -101,39 +131,43 @@
 
 # How to Run
 
-- 1 Clone Repository
-
-git clone <YOUR_GITHUB_URL>
-
-cd aws-serverless-etl-platform
-
-- 2 Create Virtual Environment
-
+**1. Clone Repository**
+```bash
+git clone
+cd Serverless-Data-Pipeline-on-AWS
+```
+ 
+**2. Create Virtual Environment**
+```bash
 python3 -m venv venv
-
-- 3 Activate Environment
-
+```
+ 
+**3. Activate Environment**
+```bash
 source venv/bin/activate
-
-- 4 Install Dependencies
-
+```
+ 
+**4. Install Dependencies**
+```bash
 pip install -r flask-app/requirements.txt
-
-- 5 Update API Gateway URL
-
+```
+ 
+**5. Update API Gateway URL**
+```bash
 nano flask-app/app.py
-
-- Replace:
-- API_URL=YOUR_API_URL
-
-- 6 Run Flask Application
-
+```
+Replace:
+```python
+API_URL = "YOUR_API_URL"
+```
+ 
+**6. Run Flask Application**
+```bash
 cd flask-app
 python3 app.py
-
-- Application Runs At
-
-http://EC2_PUBLIC_IP:5000
+```
+ 
+**Application Runs At:** `http://EC2_PUBLIC_IP:5000`
 
 ## API Endpoints
 
@@ -144,7 +178,39 @@ http://EC2_PUBLIC_IP:5000
 | GET | `/sentiment/{customer_id}` | Fetch Comprehend sentiment result for a record |
 | GET | `/health` | API health check |
 
+| Method | Path | What It Does |
+|---|---|---|
+| POST | `/submit` | Submit customer records via web form — triggers ingestion Lambda + DynamoDB write |
+| GET | `/health` | API health check |
+
 > Full interactive API docs available via API Gateway stage URL after deployment.
+
+## Sentiment Analysis Pipeline
+ 
+**How sentiment analysis works in this pipeline:**
+ 
+1. Customer record arrives via REST POST → stored in DynamoDB with `status: ingested`
+2. DynamoDB Streams triggers `comprehend_handler.py` automatically on every new record
+3. Lambda extracts the record's text and scores it using VADER's `SentimentIntensityAnalyzer`
+4. Compound score is bucketed into: `POSITIVE` / `NEGATIVE` / `NEUTRAL`
+5. Sentiment result is written back to the DynamoDB record, and status updates to `processed`
+6. Processed/failed counts are logged to `ProcessingLog` for reconciliation
+7. QuickSight dashboards segment customers by sentiment in real time
+> **Design note:** This pipeline was originally built against Amazon Comprehend. During development, the AWS account in use returned a `SubscriptionRequiredException` on Comprehend calls — an account-level service restriction unrelated to IAM permissions. Rather than block the pipeline on that, sentiment scoring was swapped to `vaderSentiment`, a lightweight, rule-based sentiment engine that runs entirely inside the Lambda with no external API dependency. The event-driven architecture (DynamoDB Streams → Lambda → status update) is unchanged, and the code is written so the analyzer can be swapped back to Comprehend or another NLP service with a single function change.
+
+## Reconciliation & Book-Closure Reporting
+ 
+> Automated daily reconciliation compares ingested vs. processed record counts and flags discrepancies, mirroring how a financial book-closure >   process reconciles ledgers at period end.
+ 
+**How it works:**
+1. `ingestion_handler.py` logs every incoming batch's record count to `IngestionLog`
+2. `comprehend_handler.py` logs processed/failed counts to `ProcessingLog` after sentiment scoring
+3. `reconciliation_handler.py` runs daily on an EventBridge schedule (`cron(0 0 * * ? *)`), sums the day's `IngestionLog` and `ProcessingLog` totals, and computes:
+   - Total ingested vs. total processed
+   - Discrepancy count
+   - Match rate percentage
+4. The report is written as JSON to `s3://.../reconciliation-reports/YYYY-MM-DD.json`
+5. `export_handler.py` separately exports processed records hourly to `s3://.../raw-records/` in JSON Lines format for downstream Glue/Athena querying
 
 ## ML Pipeline — Amazon Comprehend
 
@@ -163,19 +229,19 @@ http://EC2_PUBLIC_IP:5000
 DynamoDB (raw records)
       │
       ▼ Lambda export_handler.py
-S3 (raw JSON — partitioned by date)
+S3 (raw JSON Lines — partitioned by date)
       │
       ▼ AWS Glue Crawler
 Glue Data Catalog (schema inference)
       │
       ▼ AWS Glue ETL Job (etl_job.py)
-S3 (transformed Parquet — partitioned by region + sentiment)
+S3 (transformed Parquet — partitioned by sentiment)
       │
       ▼ Amazon Athena
 SQL queries on structured data
       │
       ▼ Amazon QuickSight
-Interactive dashboards + sentiment reports
+Interactive dashboards + sentiment + reconciliation reports
 ```
 
 ## Monitoring
@@ -183,22 +249,32 @@ Interactive dashboards + sentiment reports
 - **CloudWatch Logs** — Lambda execution logs, error tracking, invocation counts
 - **CloudWatch Alarms** — alerts on Lambda error rate and DynamoDB throttling
 - **API Gateway Metrics** — request count, latency, 4xx/5xx error rates
+- **Reconciliation reports** — daily match-rate tracking as a functional data-quality monitor
 
 ## What I Learned Building This
 
 - Lambda cold start behaviour — why provisioned concurrency matters for latency-sensitive APIs
 - DynamoDB partition key design — how poor key choice causes hot partitions under load
-- AWS Glue crawler behaviour with nested JSON — why flattening before crawling produces cleaner schemas
-- Athena query cost optimisation — partitioning S3 data by date reduces scan size and cost significantly
-- Amazon Comprehend rate limits — batching records reduces API calls and avoids throttling
-- IAM least-privilege in practice — scoping Lambda roles to exact DynamoDB table ARNs vs wildcard
+- DynamoDB Streams as an event source — using `NewImage` payloads to drive downstream processing without polling
+- AWS Glue crawler behaviour with JSON — why JSON Lines (one object per line) is required for reliable schema inference, versus a single JSON array which Spark's reader cannot always infer
+- Designing for vendor/service restrictions — building an abstraction (sentiment scoring function) that let the pipeline keep working when a managed AWS service (Comprehend) was unexpectedly unavailable at the account level
+- Athena query cost optimisation — partitioning S3 data by date/sentiment reduces scan size and cost significantly
+- IAM least-privilege in practice — scoping Lambda roles to exact DynamoDB table ARNs vs wildcard, and configuring trust policies for multiple AWS services (Lambda + Glue) to assume the same role.
+
+
+## Current Status
+ 
+- ✅ Ingestion, sentiment processing, export, and daily reconciliation — fully working end-to-end
+- ✅ Flask front-end on EC2, API Gateway, DynamoDB Streams event pipeline
+-    Glue ETL job (raw JSON → partitioned Parquet) — script written, schema inference debugging in progress
+-    Athena queries and QuickSight dashboards — pending Glue ETL completion
 
 ## Future Enhancements
 
-- Add EventBridge scheduled rules for automated ETL job triggers
+- Complete Glue ETL job debugging and Athena/QuickSight integration for reconciliation reports
 - Implement Step Functions for orchestrating multi-stage Lambda workflows
-- Enable DynamoDB Streams for real-time change data capture to S3
-- Add SageMaker endpoint for custom ML model inference alongside Comprehend
+- Add a cluster/workload migration automation module with pre/post health validation
+- Auto-file tracking tickets (GitHub Issues API) on detected pipeline failures for proactive incident response
 - Implement CI/CD pipeline using GitHub Actions for Lambda deployments
 - Add AWS WAF to API Gateway for production security hardening
 
